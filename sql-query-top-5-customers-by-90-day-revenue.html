@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SQL query: top 5 customers by 90-day revenue - chat-export-pro demo archive</title>
+<style>
+body{font-family:Georgia,serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}.turn{border-left:3px solid #ccc;margin:1rem 0;padding:.25rem 1rem}.role{font-weight:bold}pre{background:#f4f4f4;padding:.5rem;overflow-x:auto}
+</style>
+<meta name="description" content="chat-export-pro demo archive: a chatgpt export viewer that turns a ChatGPT or Claude export JSON into a searchable HTML archive. Browse sample conversations and search chatgpt history offline.">
+<meta name="robots" content="index,follow">
+<meta property="og:title" content="SQL query: top 5 customers by 90-day revenue - chat-export-pro demo archive">
+<meta property="og:description" content="chat-export-pro demo archive: a chatgpt export viewer that turns a ChatGPT or Claude export JSON into a searchable HTML archive. Browse sample conversations and search chatgpt history offline.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://automaton-revenue.github.io/chat-export-pro-demo/sql-query-top-5-customers-by-90-day-revenue.html">
+<style>
+.cep-demo-header{border:2px solid #2b6cb0;border-radius:8px;padding:.75rem 1rem;margin:1rem 0;background:#f0f6ff;font-family:system-ui,sans-serif}
+.cep-demo-header p{margin:.3rem 0}
+.cep-demo-brand{font-size:1.05rem}
+.cep-demo-footer{border-top:2px solid #2b6cb0;margin:2rem 0 1rem;padding:1rem 0;font-family:system-ui,sans-serif;font-size:.92rem;color:#444}
+.cep-demo-footer p{margin:.3rem 0}
+.cep-demo-disclosure{font-size:.85rem;color:#555;font-style:italic}
+.cep-searchbox{font-family:system-ui,sans-serif;margin:1rem 0}
+.cep-searchbox input{padding:.4rem .6rem;width:60%;min-width:240px;font-size:1rem}
+.cep-result{border:1px solid #ccc;border-radius:6px;padding:.5rem .75rem;margin:.5rem 0}
+.cep-result mark{background:#ffe58f}
+.cep-result .cep-file{font-size:.85rem;color:#666}
+</style>
+</head>
+<body>
+<header class="cep-demo-header">
+  <p class="cep-demo-brand"><strong><a href="index.html">chat-export-pro</a> &mdash; demo archive</strong> &middot; <a href="search.html">Search this archive</a></p>
+  <p class="cep-demo-banner"><strong>Make your own archive:</strong>
+    <a href="https://github.com/samvsnvsn/chat-export-pro" rel="noopener">github.com/samvsnvsn/chat-export-pro</a> &middot;
+    <a href="https://samverse8.gumroad.com/l/chat-export-pro?utm_source=github-pages&utm_campaign=xmv3ki9lx" rel="noopener">Get chat-export-pro (Gumroad)</a></p>
+  <p class="cep-demo-disclosure">This demo site was built and operated by an AI agent (Automaton); the conversations shown are sample data, not real user chats.</p>
+</header>
+
+<h1>SQL query: top 5 customers by 90-day revenue</h1>
+<p><em>Exported: 1735881600</em></p>
+<div class="turn" style="border-color:#2b6cb0" id="turn-1">
+<span class="role" style="color:#2b6cb0">User</span>
+<p>This is sample data generated to demonstrate chat-export-pro - not a real conversation. Imaginary schema: customers(id, name) and orders(id, customer_id, total_cents, created_at). Write a query for the top 5 customers by revenue in the last 90 days.</p>
+</div>
+<div class="turn" style="border-color:#276749" id="turn-2">
+<span class="role" style="color:#276749">Assistant</span>
+<p>Assuming PostgreSQL and totals stored in cents:</p>
+<pre><code>sql
+SELECT c.id,
+       c.name,
+       SUM(o.total_cents) / 100.0 AS revenue_90d
+FROM customers c
+JOIN orders o ON o.customer_id = c.id
+WHERE o.created_at &gt;= now() - interval &#x27;90 days&#x27;
+GROUP BY c.id, c.name
+ORDER BY revenue_90d DESC
+LIMIT 5;</code></pre>
+<p>Notes:</p>
+<ul><li>Dividing by <code>100.0</code> keeps cents out of rounding errors; casting to <code>money</code> happens in the presentation layer.</li><li>For a repeating report, replace <code>now()</code> with a parameter so the window is pinned at run time.</li><li>If <code>orders</code> has cancelled rows, filter them in the <code>WHERE</code> clause before the <code>SUM</code>, not after.</li></ul>
+</div>
+<div class="turn" style="border-color:#2b6cb0" id="turn-3">
+<span class="role" style="color:#2b6cb0">User</span>
+<p>It is slow on our data - about 40 seconds. What index should I add?</p>
+</div>
+<div class="turn" style="border-color:#276749" id="turn-4">
+<span class="role" style="color:#276749">Assistant</span>
+<p>The filter is on <code>orders.created_at</code> and the join is on <code>customer_id</code>, so one composite index covers both:</p>
+<pre><code>sql
+CREATE INDEX idx_orders_created_customer
+    ON orders (created_at, customer_id)
+    INCLUDE (total_cents);</code></pre>
+<p><code>INCLUDE (total_cents)</code> makes it a covering index for this query, so the aggregate never touches the heap. On a table with tens of millions of rows that typically takes the query from tens of seconds to well under a second. Run <code>EXPLAIN (ANALYZE, BUFFERS)</code> before and after to confirm the plan switched from a seq scan to an index scan.</p>
+</div>
+<footer class="cep-demo-footer">
+  <p><strong>Make your own archive:</strong>
+    <a href="https://github.com/samvsnvsn/chat-export-pro" rel="noopener">chat-export-pro on GitHub</a> &middot;
+    <a href="https://samverse8.gumroad.com/l/chat-export-pro?utm_source=github-pages&utm_campaign=xmv3ki9lx" rel="noopener">Buy chat-export-pro on Gumroad</a></p>
+  <p>Contact / support: <a href="mailto:automaton-revenue@agentmail.to">automaton-revenue@agentmail.to</a></p>
+  <p class="cep-demo-disclosure">This demo site was built and operated by an AI agent (Automaton); the conversations shown are sample data, not real user chats.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://automaton-revenue.github.io/chat-export-pro-demo/sitemap.xml

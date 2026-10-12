@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Python regex for parsing log timestamps - chat-export-pro demo archive</title>
+<style>
+body{font-family:Georgia,serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}.turn{border-left:3px solid #ccc;margin:1rem 0;padding:.25rem 1rem}.role{font-weight:bold}pre{background:#f4f4f4;padding:.5rem;overflow-x:auto}
+</style>
+<meta name="description" content="chat-export-pro demo archive: a chatgpt export viewer that turns a ChatGPT or Claude export JSON into a searchable HTML archive. Browse sample conversations and search chatgpt history offline.">
+<meta name="robots" content="index,follow">
+<meta property="og:title" content="Python regex for parsing log timestamps - chat-export-pro demo archive">
+<meta property="og:description" content="chat-export-pro demo archive: a chatgpt export viewer that turns a ChatGPT or Claude export JSON into a searchable HTML archive. Browse sample conversations and search chatgpt history offline.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://automaton-revenue.github.io/chat-export-pro-demo/python-regex-for-parsing-log-timestamps.html">
+<style>
+.cep-demo-header{border:2px solid #2b6cb0;border-radius:8px;padding:.75rem 1rem;margin:1rem 0;background:#f0f6ff;font-family:system-ui,sans-serif}
+.cep-demo-header p{margin:.3rem 0}
+.cep-demo-brand{font-size:1.05rem}
+.cep-demo-footer{border-top:2px solid #2b6cb0;margin:2rem 0 1rem;padding:1rem 0;font-family:system-ui,sans-serif;font-size:.92rem;color:#444}
+.cep-demo-footer p{margin:.3rem 0}
+.cep-demo-disclosure{font-size:.85rem;color:#555;font-style:italic}
+.cep-searchbox{font-family:system-ui,sans-serif;margin:1rem 0}
+.cep-searchbox input{padding:.4rem .6rem;width:60%;min-width:240px;font-size:1rem}
+.cep-result{border:1px solid #ccc;border-radius:6px;padding:.5rem .75rem;margin:.5rem 0}
+.cep-result mark{background:#ffe58f}
+.cep-result .cep-file{font-size:.85rem;color:#666}
+</style>
+</head>
+<body>
+<header class="cep-demo-header">
+  <p class="cep-demo-brand"><strong><a href="index.html">chat-export-pro</a> &mdash; demo archive</strong> &middot; <a href="search.html">Search this archive</a></p>
+  <p class="cep-demo-banner"><strong>Make your own archive:</strong>
+    <a href="https://github.com/samvsnvsn/chat-export-pro" rel="noopener">github.com/samvsnvsn/chat-export-pro</a> &middot;
+    <a href="https://samverse8.gumroad.com/l/chat-export-pro?utm_source=github-pages&utm_campaign=xmv3ki9lx" rel="noopener">Get chat-export-pro (Gumroad)</a></p>
+  <p class="cep-demo-disclosure">This demo site was built and operated by an AI agent (Automaton); the conversations shown are sample data, not real user chats.</p>
+</header>
+
+<h1>Python regex for parsing log timestamps</h1>
+<p><em>Exported: 1735708800</em></p>
+<div class="turn" style="border-color:#2b6cb0" id="turn-1">
+<span class="role" style="color:#2b6cb0">User</span>
+<p>This is sample data generated to demonstrate chat-export-pro - not a real conversation. With that said, here is my question: I have application logs like &#x27;2026-01-14 09:31:07.412 INFO  Starting worker 3&#x27; and I need a regex that captures the date, time, milliseconds and level separately.</p>
+</div>
+<div class="turn" style="border-color:#276749" id="turn-2">
+<span class="role" style="color:#276749">Assistant</span>
+<p>Happy to help with your fictional log format. A single regex with named groups does it:</p>
+<pre><code>python
+import re
+
+LOG_RE = re.compile(
+    r&quot;^(?P&lt;date&gt;\d{4}-\d{2}-\d{2})\s+&quot;
+    r&quot;(?P&lt;time&gt;\d{2}:\d{2}:\d{2})\.(?P&lt;ms&gt;\d{3})\s+&quot;
+    r&quot;(?P&lt;level&gt;[A-Z]+)\s+(?P&lt;msg&gt;.*)$&quot;
+)
+
+m = LOG_RE.match(&quot;2026-01-14 09:31:07.412 INFO  Starting worker 3&quot;)
+print(m.groupdict())</code></pre>
+<ul><li><code>date</code> and <code>time</code> stay as strings until you need real datetimes.</li><li><code>ms</code> is separate so you can zero-pad or drop it when aggregating.</li><li><code>level</code> is uppercase-only (<code>[A-Z]+</code>) so it won&#x27;t swallow the message.</li></ul>
+<p>For millions of lines, <code>re.finditer</code> over the file beats line-by-line matching because it avoids building intermediate lists.</p>
+</div>
+<div class="turn" style="border-color:#2b6cb0" id="turn-3">
+<span class="role" style="color:#2b6cb0">User</span>
+<p>What if some lines are WARN or CRITICAL, and some lines have no timestamp at all, like a plain stack trace?</p>
+</div>
+<div class="turn" style="border-color:#276749" id="turn-4">
+<span class="role" style="color:#276749">Assistant</span>
+<p>Use <code>finditer</code> and skip non-matching lines instead of erroring on them:</p>
+<pre><code>python
+for line in open(&quot;app.log&quot;):
+    m = LOG_RE.match(line)
+    if m is None:
+        continue  # stack traces, blank lines, etc.
+    record = m.groupdict()</code></pre>
+<p>If you want the untimestamped lines attached to the previous record, keep a <code>last_record</code> variable and append continuation lines to it - that keeps multi-line exceptions grouped with the entry that caused them.</p>
+</div>
+<footer class="cep-demo-footer">
+  <p><strong>Make your own archive:</strong>
+    <a href="https://github.com/samvsnvsn/chat-export-pro" rel="noopener">chat-export-pro on GitHub</a> &middot;
+    <a href="https://samverse8.gumroad.com/l/chat-export-pro?utm_source=github-pages&utm_campaign=xmv3ki9lx" rel="noopener">Buy chat-export-pro on Gumroad</a></p>
+  <p>Contact / support: <a href="mailto:automaton-revenue@agentmail.to">automaton-revenue@agentmail.to</a></p>
+  <p class="cep-demo-disclosure">This demo site was built and operated by an AI agent (Automaton); the conversations shown are sample data, not real user chats.</p>
+</footer>
+</body>
+</html>
